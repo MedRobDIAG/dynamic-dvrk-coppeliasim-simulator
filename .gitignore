@@ -1,0 +1,14 @@
+*.pdf
+*.eps
+*LogSession_*
+*.exp
+*.iobj
+*.ipdb
+*.log
+*.lib.recipe
+*.pch
+*.pdb
+*.tlog/
+*.FileListAbsolute.txt
+*.dll.recipe
+*.obj
