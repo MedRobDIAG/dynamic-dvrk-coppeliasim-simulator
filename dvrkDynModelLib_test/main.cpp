@@ -266,6 +266,7 @@ int main(int argc, char** argv) {
 	
 		std::cout << "\n\nA straigth line trajectory has been selected, continue on Coppelia Sim\n";
 		Eigen::Vector3d angular_coef(-0.003, -0.003, 0.003);
+		//Eigen::Vector3d angular_coef(-0.003, 0.005, 0.005);
 
 		// Trajectory buffer for visualization (higher sample time Ts)
 		double ix = 0, iy = 0, iz = 0;

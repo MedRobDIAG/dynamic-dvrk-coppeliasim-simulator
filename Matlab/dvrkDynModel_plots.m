@@ -5,11 +5,26 @@ clc;
 
 %% Flags
 saveFigs = true;
+dynamicFlag = false; % keep it false, it will be changed automatically later
+
+% Log legend
+% 53: kinematic control - rectilinear trajectory - no cw
+% 54: kinematic control - rectilinear trajectory - w cw
+% 55: kinematic control - spiral trajectory - no cw
+% 56: kinematic control - spiral trajectory - w cw
+
+% 87: dynamic control - regulation - w cw
+% 89: dynamic control - rectilinear trajectory - w cw
+% 88: dynamic  control - spiral trajectory - w cw
+
+% 92: dynamic control - regulation - w cw
+% 93: dynamic control - rectilinear trajectory - w cw
+% 94: dynamic  control - spiral trajectory - w cw
 
 % Log session
-logNum = 89;
+logNum = 55;
 % logNum = 58; % no cw
-logNum2 = 57; % with cw
+logNum2 = 56; % with cw
 
 % utility data
 fontsize = 25;
@@ -20,14 +35,26 @@ fullPath = strcat(datasetPath,'LogSession_',int2str(logNum),'/');
 fullPath2 = strcat(datasetPath,'LogSession_',int2str(logNum2),'/');
 
 % Load data
+logTitleFile = fopen(strcat(fullPath,'LogSessionInfo.txt'),'r');
+logTitle = textscan(4,'%s','delimiter','\n');
+logTitle = logTitle{1};
+fclose(logTitleFile);
+if(contains(logTitle{1},'dynamic'))
+    dynamicFlag = true;
+end
+
+
+
 tauMeas = load(strcat(fullPath,'tauMsr.txt'));
 tauMod = load(strcat(fullPath,'tauModel.txt'));
-tauCmd = load(strcat(fullPath,'tauCmd.txt'));
 pdes = load(strcat(fullPath,'pdes.txt'));
 Rdes = load(strcat(fullPath,'Rdes.txt'));
 pee = load(strcat(fullPath,'pee.txt'));
 Ree = load(strcat(fullPath,'Ree.txt'));
 g = load(strcat(fullPath,'g.txt'));
+if dynamicFlag
+    tauCmd = load(strcat(fullPath,'tauCmd.txt'));
+end
 
 % For comparison
 pdes2 = load(strcat(fullPath2,'pdes.txt'));
@@ -35,11 +62,6 @@ pee2 = load(strcat(fullPath2,'pee.txt'));
 g2 = load(strcat(fullPath2,'g.txt'));
 tauMeas2 = load(strcat(fullPath2,'tauMsr.txt'));
 tauMod2 = load(strcat(fullPath2,'tauModel.txt'));
-
-logTitleFile = fopen(strcat(fullPath,'LogSessionInfo.txt'),'r');
-logTitle = textscan(4,'%s','delimiter','\n');
-logTitle = logTitle{1};
-fclose(logTitleFile);
 
 % Compute Cartesian position error
 posErr = zeros(length(pdes),4);
@@ -64,11 +86,6 @@ for i = 1 : length(Rdes)
     abg_des(i,2:4) = rotm2eul(Ri_des,'XYZ');
     abg_ee(i,2:4) = rotm2eul(Ri,'XYZ');
     oriErr(i,2:4) = abg_des(i,2:4) - abg_ee(i,2:4);
-end
-
-dynamicFlag = false;
-if(contains(logTitle{1},'dynamic'))
-    dynamicFlag = true;
 end
 
 trajTypeStr = '';
@@ -104,8 +121,8 @@ if ~dynamicFlag
         legStr = {};
         grid on; hold on;
         box on; hold on;
-        plot(tauMeas(:,1),tauMeas(:,i+1),'LineWidth',2,'Color',[1 0 0]);hold on;legStr = [legStr;strMeasNames(i);];
         plot(tauMod(:,1),-tauMod(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strModNames(i);];
+        plot(tauMeas(:,1),tauMeas(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strMeasNames(i);];
         axis([tstart tend -ymax(i) ymax(i)]);
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
@@ -117,8 +134,8 @@ if ~dynamicFlag
     trqCompFig.PaperOrientation='landscape';
     if saveFigs
         sigNameString = strcat(trajTypeStr,'-nocw-trq-comparison');
-        filename_eps = strcat('./',sigNameString,'.eps');
-        filename_pdf = strcat('./',sigNameString,'.pdf');
+        filename_eps = strcat(fullPath,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath,sigNameString,'.pdf');
         exportgraphics(trqCompFig,filename_eps,'Resolution',300);
         exportgraphics(trqCompFig,filename_pdf,'Resolution',300);
     end
@@ -139,8 +156,8 @@ if ~dynamicFlag
         legStr = {};
         grid on; hold on;
         box on; hold on;
-        plot(tauMeas2(:,1),tauMeas2(:,i+1),'LineWidth',2,'Color',[1 0 0]);hold on;legStr = [legStr;strMeasNames(i);];
         plot(tauMod2(:,1),-tauMod2(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strModNames(i);];
+        plot(tauMeas2(:,1),tauMeas2(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strMeasNames(i);];
         axis([tstart tend -ymax(i) ymax(i)]);
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
@@ -152,8 +169,8 @@ if ~dynamicFlag
     trqCompFig2.PaperOrientation='landscape';
     if saveFigs
         sigNameString = strcat(trajTypeStr,'-withcw-trq-comparison');
-        filename_eps = strcat('./',sigNameString,'.eps');
-        filename_pdf = strcat('./',sigNameString,'.pdf');
+        filename_eps = strcat(fullPath2,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath2,sigNameString,'.pdf');
         exportgraphics(trqCompFig2,filename_eps,'Resolution',300);
         exportgraphics(trqCompFig2,filename_pdf,'Resolution',300);
     end
@@ -188,8 +205,8 @@ if saveFigs
     if dynamicFlag
         sigNameString = strcat('dynamic-',sigNameString);
     end
-    filename_eps = strcat('./',sigNameString,'.eps');
-    filename_pdf = strcat('./',sigNameString,'.pdf');
+    filename_eps = strcat(fullPath,sigNameString,'.eps');
+    filename_pdf = strcat(fullPath,sigNameString,'.pdf');
     exportgraphics(CartPositionFig,filename_eps,'Resolution',300);
     exportgraphics(CartPositionFig,filename_pdf,'Resolution',300);
 end
@@ -221,8 +238,8 @@ if saveFigs
     if dynamicFlag
         sigNameString = strcat('dynamic-',sigNameString);
     end
-    filename_eps = strcat('./',sigNameString,'.eps');
-    filename_pdf = strcat('./',sigNameString,'.pdf');
+    filename_eps = strcat(fullPath,sigNameString,'.eps');
+    filename_pdf = strcat(fullPath,sigNameString,'.pdf');
     exportgraphics(CartPositionErrFig,filename_eps,'Resolution',300);
     exportgraphics(CartPositionErrFig,filename_pdf,'Resolution',300);
 end
@@ -254,8 +271,8 @@ if ~dynamicFlag
     CartOrientationFig.PaperOrientation='landscape';
     if saveFigs
         sigNameString = strcat(trajTypeStr,'-cart-orientation');
-        filename_eps = strcat('./',sigNameString,'.eps');
-        filename_pdf = strcat('./',sigNameString,'.pdf');
+        filename_eps = strcat(fullPath,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath,sigNameString,'.pdf');
         exportgraphics(CartOrientationFig,filename_eps,'Resolution',300);
         exportgraphics(CartOrientationFig,filename_pdf,'Resolution',300);
     end
@@ -282,7 +299,7 @@ if dynamicFlag
 %         plot(tauCmd(:,1),tauCmd(:,i+1),'LineWidth',2,'Color',tau_color(i,:));hold on;legStr = [legStr;strTauNames(i);];
         plot(tauMod(:,1),tauMod(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strcat('$\tau_{mod,',int2str(i),'}$');];
         plot(tauMeas(:,1),-tauMeas(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strcat('$\tau_{sim,',int2str(i),'}$');];
-        plot(tauCmd(:,1),tauCmd(:,i+1),'LineWidth',2,'Color',[0 1 0],'LineStyle','--');hold on;legStr = [legStr;strcat('$\tau_{cmd,',int2str(i),'}$');];
+%         plot(tauCmd(:,1),tauCmd(:,i+1),'LineWidth',2,'Color',[0 1 0],'LineStyle','--');hold on;legStr = [legStr;strcat('$\tau_{cmd,',int2str(i),'}$');];
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
         set(gca,'FontSize',fontsize);
@@ -301,8 +318,8 @@ if dynamicFlag
         if dynamicFlag
             sigNameString = strcat('dynamic-',sigNameString);
         end
-        filename_eps = strcat('./',sigNameString,'.eps');
-        filename_pdf = strcat('./',sigNameString,'.pdf');
+        filename_eps = strcat(fullPath,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath,sigNameString,'.pdf');
         exportgraphics(tauCmdFig,filename_eps,'Resolution',300);
         exportgraphics(tauCmdFig,filename_pdf,'Resolution',300);
     end
