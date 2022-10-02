@@ -219,6 +219,14 @@ int main(int argc, char** argv) {
 		"\n\t4. joint excitation trajectory (work with dt=5.0ms for consistency with offline database)" << std::endl;
 	std::cin >> choose;
 
+	if (choose == TASK_TYPE::EXCITING_JOINT_TRAJECTORY_TASK) {
+		// Force runPlayback flag to true
+		runPlayback = true;
+	}
+	else {
+		runPlayback = false;
+	}
+
 	// Set CoppeliaSim synchronous mode
 	simxSynchronous(clientID, sync);
 
