@@ -130,7 +130,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;USE_MATH_DEFINES;DO_NOT_USE_SHARED_MEMORY;NON_MATLAB_PARSING;MAX_EXT_API_CONNECTIONS=255;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\dvrkDynModelLib;$(VREPx64_coppelia)\programming\include;$(VREPx64_coppelia)\programming\remoteApi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(EIGEN);..\dvrkDynModelLib;$(VREPx64_coppelia)\programming\include;$(VREPx64_coppelia)\programming\remoteApi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>

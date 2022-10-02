@@ -4,27 +4,25 @@ clear all;
 clc;
 
 %% Flags
-saveFigs = true;
+saveFigs = false;
 dynamicFlag = false; % keep it false, it will be changed automatically later
+jointExcitationFlag = false; % keep it false, it will be changed automatically later
 
 % Log legend
-% 53: kinematic control - rectilinear trajectory - no cw
-% 54: kinematic control - rectilinear trajectory - w cw
-% 55: kinematic control - spiral trajectory - no cw
-% 56: kinematic control - spiral trajectory - w cw
+% 1 : kinematic control - 10ms rectilinear trajectory - no cw
+% 2 : kinematic control - 10ms rectilinear trajectory - w cw 
+% 3 : kinematic control - 10ms spiral trajectory - no cw
+% 4 : kinematic control - 10ms spiral trajectory - w cw 
+% 5 : kinematic control - 5ms joint exciting trajectories - w cw
+% 6 : kinematic control - 5ms joint exciting trajectories - no cw
 
-% 87: dynamic control - regulation - w cw
-% 89: dynamic control - rectilinear trajectory - w cw
-% 88: dynamic  control - spiral trajectory - w cw
-
-% 92: dynamic control - regulation - w cw
-% 93: dynamic control - rectilinear trajectory - w cw
-% 94: dynamic  control - spiral trajectory - w cw
+% 7 : dynamic control - regulation - w cw
+% 8 : dynamic control - rectilinear trajectory - w cw
+% 9 : dynamic  control - spiral trajectory - w cw
 
 % Log session
-logNum = 55;
-% logNum = 58; % no cw
-logNum2 = 56; % with cw
+logNum = 1; % no cw
+logNum_cw = 2; % with cw
 
 % utility data
 fontsize = 25;
@@ -32,7 +30,7 @@ fontsize = 25;
 % Dataset path
 datasetPath = '../dvrkDynModelLib/x64/Release/';
 fullPath = strcat(datasetPath,'LogSession_',int2str(logNum),'/');
-fullPath2 = strcat(datasetPath,'LogSession_',int2str(logNum2),'/');
+fullPath_cw = strcat(datasetPath,'LogSession_',int2str(logNum_cw),'/');
 
 % Load data
 logTitleFile = fopen(strcat(fullPath,'LogSessionInfo.txt'),'r');
@@ -41,6 +39,10 @@ logTitle = logTitle{1};
 fclose(logTitleFile);
 if(contains(logTitle{1},'dynamic'))
     dynamicFlag = true;
+end
+
+if(contains(logTitle{1},'excitation'))
+    jointExcitationFlag = true;
 end
 
 
@@ -52,25 +54,28 @@ Rdes = load(strcat(fullPath,'Rdes.txt'));
 pee = load(strcat(fullPath,'pee.txt'));
 Ree = load(strcat(fullPath,'Ree.txt'));
 g = load(strcat(fullPath,'g.txt'));
-if dynamicFlag
-    tauCmd = load(strcat(fullPath,'tauCmd.txt'));
-end
+
 
 % For comparison
-pdes2 = load(strcat(fullPath2,'pdes.txt'));
-pee2 = load(strcat(fullPath2,'pee.txt'));
-g2 = load(strcat(fullPath2,'g.txt'));
-tauMeas2 = load(strcat(fullPath2,'tauMsr.txt'));
-tauMod2 = load(strcat(fullPath2,'tauModel.txt'));
+pdes_cw = load(strcat(fullPath_cw,'pdes.txt'));
+pee_cw = load(strcat(fullPath_cw,'pee.txt'));
+g_cw = load(strcat(fullPath_cw,'g.txt'));
+tauMeas_cw = load(strcat(fullPath_cw,'tauMsr.txt'));
+tauMod_cw = load(strcat(fullPath_cw,'tauModel.txt'));
+
+if dynamicFlag || (~dynamicFlag && jointExcitationFlag)
+    tauCmd_ncw = load(strcat(fullPath,'tauCmd.txt'));
+    tauCmd_cw = load(strcat(fullPath_cw,'tauCmd.txt'));
+end
 
 % Compute Cartesian position error
-posErr = zeros(length(pdes),4);
-posErr(:,1) = pdes(:,1);
-posErr(:,2:4) = pdes(:,2:4) - pee(:,2:4);
+posErr_ncw = zeros(length(pdes),4);
+posErr_ncw(:,1) = pdes(:,1);
+posErr_ncw(:,2:4) = pdes(:,2:4) - pee(:,2:4);
 
-posErr2 = zeros(length(pdes2),4);
-posErr2(:,1) = pdes2(:,1);
-posErr2(:,2:4) = pdes2(:,2:4) - pee2(:,2:4);
+posErr_cw = zeros(length(pdes_cw),4);
+posErr_cw(:,1) = pdes_cw(:,1);
+posErr_cw(:,2:4) = pdes_cw(:,2:4) - pee_cw(:,2:4);
 
 % Compute Cartesian orientation error
 oriErr = zeros(length(Rdes),4);
@@ -98,9 +103,51 @@ elseif(contains(logTitle{1},'spiral'))
 elseif(contains(logTitle{1},'regulation'))
     ymax = [2 2 2];
     trajTypeStr = 'regulation';
-else
-    ymax = [2 2 2];
+elseif(contains(logTitle{1},'excitation'))
+    trajTypeStr = 'joint-excitationTraj';
 end
+
+%% RMSE tracking accuracy
+start_t = 0.5;
+start_idx = find(abs(posErr_ncw(:,1)-start_t)<1e-2);start_idx = start_idx(1);
+rmsTrackPos_ncw = rms(posErr_ncw(:,2:4));
+rmsTrackPos_tot_ncw = sqrt(rmsTrackPos_ncw(1)^2+rmsTrackPos_ncw(2)^2+rmsTrackPos_ncw(3)^2);
+
+start_idx = find(abs(posErr_cw(:,1)-start_t)<1e-2);start_idx = start_idx(1);
+rmsTrackPos_cw = rms(posErr_cw(:,2:4));
+rmsTrackPos_tot_cw = sqrt(rmsTrackPos_cw(1)^2+rmsTrackPos_cw(2)^2+rmsTrackPos_cw(3)^2);
+
+start_idx = find(abs(oriErr(:,1)-start_t)<1e-2);start_idx = start_idx(1);
+rmsTrackOri_cw = rms(oriErr(:,2:4));
+rmsTrackOri_tot_cw = sqrt(rmsTrackOri_cw(1)^2+rmsTrackOri_cw(2)^2+rmsTrackOri_cw(3)^2);
+
+%% RMSE Torques
+start_t = 0.5;
+start_idx = find(abs(tauMeas(:,1)-start_t)<1e-2);start_idx = start_idx(1);
+if ~jointExcitationFlag
+    tauErr_ncw = tauMeas(start_idx:end,2:4)-(-tauMod(start_idx:end,2:4));
+else
+    tauErr_ncw = tauMeas(start_idx:end,2:4)-(-tauCmd_ncw(start_idx:end,2:4));
+end
+
+relRMS_ncw = norm(tauErr_ncw)/norm(tauMod(start_idx:end,2:4));
+RMS_ncw = sqrt(sum(tauErr_ncw.^2)/size(tauErr_ncw,1))
+RMS_12_ncw = sqrt(RMS_ncw(1)^2+RMS_ncw(2)^2);
+RMS_3_ncw = RMS_ncw(3);
+RMS_tot_ncw = RMS_12_ncw + RMS_3_ncw;
+
+start_idx = find(abs(tauMeas_cw(:,1)-start_t)<1e-2);start_idx = start_idx(1);
+if ~jointExcitationFlag 
+    tauErr_cw = tauMeas_cw(start_idx:end,2:4)-(-tauMod_cw(start_idx:end,2:4));
+else
+    tauErr_cw = tauMeas_cw(start_idx:end,2:4)-(-tauCmd_cw(start_idx:end,2:4));
+end
+
+relRMS_cw = norm(tauErr_cw)/norm(tauMod_cw(start_idx:end,2:4));
+RMS_cw = sqrt(sum(tauErr_cw.^2)/size(tauErr_cw,1))
+RMS_12_cw = sqrt(RMS_cw(1)^2+RMS_cw(2)^2);
+RMS_3_cw = RMS_cw(3);
+RMS_tot_cw = RMS_12_cw + RMS_3_cw;
 
 
 %% Plots
@@ -110,19 +157,22 @@ if ~dynamicFlag
     trqCompFig = figure;
     strMeasNames = {'$\tau_{1,sim}$';'$\tau_{2,sim}$';'$f_{3,sim}$'};
     strModNames = {'$\tau_{1,mod}$';'$\tau_{2,mod}$';'$f_{3,mod}$'};
-    % strModNames = {'$\hat{\tau}_{1}$';'$\hat{\tau}_{2}$';'$\hat{f}_{3}$'};
+    strWangNames = {'$\tau_{1,W}$';'$\tau_{2,W}$';'$f_{3,W}$'};
     yStrNames = {'Torque [Nm]';'Torque [Nm]';'Force [N]'};
     tstart = tauMeas(1,1);
-    tend = tauMeas(end,1);
+    tend = tauMeas(end,1);   
+    ymax = [5 5 5];
 
     for i = 1 : 3
         subplot(3,1,i);
-    %     if i == 1, title(logTitle,'interpreter','latex');hold on; end
         legStr = {};
         grid on; hold on;
         box on; hold on;
         plot(tauMod(:,1),-tauMod(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strModNames(i);];
         plot(tauMeas(:,1),tauMeas(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strMeasNames(i);];
+        if(jointExcitationFlag)
+            plot(tauCmd_ncw(:,1),-tauCmd_cw(:,i+1),'LineWidth',2,'Color',[0 1 0]);hold on;legStr = [legStr;strWangNames(i);];
+        end
         axis([tstart tend -ymax(i) ymax(i)]);
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
@@ -139,25 +189,28 @@ if ~dynamicFlag
         exportgraphics(trqCompFig,filename_eps,'Resolution',300);
         exportgraphics(trqCompFig,filename_pdf,'Resolution',300);
     end
-
+    
     % % % 1b. Torque comparison - with cw
     trqCompFig2 = figure;
     strMeasNames = {'$\tau_{1,sim}$';'$\tau_{2,sim}$';'$f_{3,sim}$'};
     strModNames = {'$\tau_{1,mod}$';'$\tau_{2,mod}$';'$f_{3,mod}$'};
-    % strModNames = {'$\hat{\tau}_{1}$';'$\hat{\tau}_{2}$';'$\hat{f}_{3}$'};
+    strWangNames = {'$\tau_{1,W}$';'$\tau_{2,W}$';'$f_{3,W}$'};
     yStrNames = {'Torque [Nm]';'Torque [Nm]';'Force [N]'};
-    tstart = tauMeas(1,1);
-    tend = tauMeas(end,1);
-    % ymax = [2 2 5];
+    tstart = tauMeas_cw(1,1);
+    tend = tauMeas_cw(end,1);
     ymax = [5 5 5];
+    
+    
     for i = 1 : 3
         subplot(3,1,i);
-    %     if i == 1, title(logTitle,'interpreter','latex');hold on; end
         legStr = {};
         grid on; hold on;
         box on; hold on;
-        plot(tauMod2(:,1),-tauMod2(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strModNames(i);];
-        plot(tauMeas2(:,1),tauMeas2(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strMeasNames(i);];
+        plot(tauMod_cw(:,1),-tauMod_cw(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strModNames(i);];
+        plot(tauMeas_cw(:,1),tauMeas_cw(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strMeasNames(i);];
+        if(jointExcitationFlag)
+            plot(tauCmd_cw(:,1),-tauCmd_cw(:,i+1),'LineWidth',2,'Color',[0 1 0]);hold on;legStr = [legStr;strWangNames(i);];
+        end
         axis([tstart tend -ymax(i) ymax(i)]);
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
@@ -169,115 +222,113 @@ if ~dynamicFlag
     trqCompFig2.PaperOrientation='landscape';
     if saveFigs
         sigNameString = strcat(trajTypeStr,'-withcw-trq-comparison');
-        filename_eps = strcat(fullPath2,sigNameString,'.eps');
-        filename_pdf = strcat(fullPath2,sigNameString,'.pdf');
+        filename_eps = strcat(fullPath_cw,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath_cw,sigNameString,'.pdf');
         exportgraphics(trqCompFig2,filename_eps,'Resolution',300);
         exportgraphics(trqCompFig2,filename_pdf,'Resolution',300);
     end
 end
 
-
-% 2. Cartesian position comparison (des vs actual)
-CartPositionFig = figure;
-pdes_str = {'$x_d$';'$y_d$';'$z_d$'};
-p_str = {'$x$';'$y$';'$z$'};
-perr_str = {'$e_x$';'$e_y$';'$e_z$'};
-tstart = posErr(1,1);
-tend = min(posErr(end,1),posErr2(end,1));
-for i = 1 : 3
-    subplot(3,1,i);
-    grid on;hold on;
-    box on; hold on;
-    plot(pee(:,1),pee(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;
-    plot(pdes(:,1),pdes(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;
-    axis([0 tend min(pee(:,i+1))-0.02,pdes(1,i+1)+0.06]);
-%     plot(posErr(:,1),posErr(:,i+1),'LineWidth',1,'Color',[0 0 0],'LineStyle','--');hold on;
-    legend({p_str{i};pdes_str{i}},'interpreter','latex','FontSize',fontsize*2);
-    xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-    ylabel('Position [m]','interpreter','latex','FontSize',fontsize);
-    set(gca,'FontSize',fontsize);
-end
-CartPositionFig.WindowState = 'fullscreen';
-CartPositionFig.PaperPositionMode='auto';
-CartPositionFig.PaperOrientation='landscape';
-if saveFigs
-    sigNameString = strcat(trajTypeStr,'-cart-position');
-    if dynamicFlag
-        sigNameString = strcat('dynamic-',sigNameString);
-    end
-    filename_eps = strcat(fullPath,sigNameString,'.eps');
-    filename_pdf = strcat(fullPath,sigNameString,'.pdf');
-    exportgraphics(CartPositionFig,filename_eps,'Resolution',300);
-    exportgraphics(CartPositionFig,filename_pdf,'Resolution',300);
-end
-
-% Cartesian position error
-CartPositionErrFig = figure;
-perr_str = {'$e_x$';'$e_y$';'$e_z$'};
-scale = 0.8;
-err_color = [scale, 0, 0;0, scale, 0;0, 0, scale];
-tstart = posErr(1,1);
-tend = min(posErr(end,1),posErr2(end,1));
-grid on;hold on;
-box on; hold on;
-for i = 1 : 3
-%     plot(posErr(:,1),abs(posErr(:,i+1)),'LineWidth',2,'Color',err_color(i,:));hold on;
-    plot(posErr(:,1),posErr(:,i+1),'LineWidth',2,'Color',err_color(i,:));hold on;
-end
-% axis([0 tend -0.00 0.015])
-axis([0 tend min([min(posErr(:,2)),min(posErr(:,3)),min(posErr(:,4))]) max([max(posErr(:,2)),max(posErr(:,3)),max(posErr(:,4))])])
-xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-ylabel('Position error [m]','interpreter','latex','FontSize',fontsize);
-set(gca,'FontSize',fontsize);
-legend(perr_str,'interpreter','latex','FontSize',fontsize*2);
-CartPositionErrFig.WindowState = 'fullscreen';
-CartPositionErrFig.PaperPositionMode='auto';
-CartPositionErrFig.PaperOrientation='landscape';
-if saveFigs
-    sigNameString = strcat(trajTypeStr,'-cart-position-error');
-    if dynamicFlag
-        sigNameString = strcat('dynamic-',sigNameString);
-    end
-    filename_eps = strcat(fullPath,sigNameString,'.eps');
-    filename_pdf = strcat(fullPath,sigNameString,'.pdf');
-    exportgraphics(CartPositionErrFig,filename_eps,'Resolution',300);
-    exportgraphics(CartPositionErrFig,filename_pdf,'Resolution',300);
-end
-
-if ~dynamicFlag
-    % 2. Cartesian orientation error
-    CartOrientationFig = figure;
-    pdes_str = {'$\alpha_d$';'$\beta_d$';'$\gamma_d$'};
-    p_str = {'$\alpha$';'$\beta$';'$\gamma$'};
+if ~jointExcitationFlag
+    % 2. Cartesian position comparison (des vs actual)
+    CartPositionFig = figure;
+    pdes_str = {'$x_d$';'$y_d$';'$z_d$'};
+    p_str = {'$x$';'$y$';'$z$'};
     perr_str = {'$e_x$';'$e_y$';'$e_z$'};
-    tstart = posErr(1,1);
-    tend = min(posErr(end,1),posErr2(end,1));
-    ymax = [0.25 0.25 0.25];
+    tstart = posErr_ncw(1,1);
+    tend = min(posErr_ncw(end,1),posErr_cw(end,1));
     for i = 1 : 3
         subplot(3,1,i);
         grid on;hold on;
         box on; hold on;
-        plot(abg_ee(:,1),abg_ee(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;
-        plot(abg_des(:,1),abg_des(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;
-    %     plot(posErr(:,1),posErr(:,i+1),'LineWidth',1,'Color',[0 0 0],'LineStyle','--');hold on;
-        axis([tstart tend -ymax(i) ymax(i)]);
+        plot(pee(:,1),pee(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;
+        plot(pdes(:,1),pdes(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;
+        axis([0 tend min(pee(:,i+1))-0.02,pdes(1,i+1)+0.06]);
         legend({p_str{i};pdes_str{i}},'interpreter','latex','FontSize',fontsize*2);
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-        ylabel('Orientation [rad]','interpreter','latex','FontSize',fontsize);
+        ylabel('Position [m]','interpreter','latex','FontSize',fontsize);
         set(gca,'FontSize',fontsize);
     end
-    CartOrientationFig.WindowState = 'fullscreen';
-    CartOrientationFig.PaperPositionMode='auto';
-    CartOrientationFig.PaperOrientation='landscape';
+    CartPositionFig.WindowState = 'fullscreen';
+    CartPositionFig.PaperPositionMode='auto';
+    CartPositionFig.PaperOrientation='landscape';
     if saveFigs
-        sigNameString = strcat(trajTypeStr,'-cart-orientation');
+        sigNameString = strcat(trajTypeStr,'-cart-position');
+        if dynamicFlag
+            sigNameString = strcat('dynamic-',sigNameString);
+        end
         filename_eps = strcat(fullPath,sigNameString,'.eps');
         filename_pdf = strcat(fullPath,sigNameString,'.pdf');
-        exportgraphics(CartOrientationFig,filename_eps,'Resolution',300);
-        exportgraphics(CartOrientationFig,filename_pdf,'Resolution',300);
+        exportgraphics(CartPositionFig,filename_eps,'Resolution',300);
+        exportgraphics(CartPositionFig,filename_pdf,'Resolution',300);
+    end
+
+    % Cartesian position error
+    CartPositionErrFig = figure;
+    perr_str = {'$e_x$';'$e_y$';'$e_z$'};
+    scale = 0.8;
+    err_color = [scale, 0, 0;0, scale, 0;0, 0, scale];
+    tstart = posErr_ncw(1,1);
+    tend = min(posErr_ncw(end,1),posErr_cw(end,1));
+    grid on;hold on;
+    box on; hold on;
+    for i = 1 : 3
+    %     plot(posErr(:,1),abs(posErr(:,i+1)),'LineWidth',2,'Color',err_color(i,:));hold on;
+        plot(posErr_ncw(:,1),posErr_ncw(:,i+1),'LineWidth',2,'Color',err_color(i,:));hold on;
+    end
+    % axis([0 tend -0.00 0.015])
+    axis([0 tend min([min(posErr_ncw(:,2)),min(posErr_ncw(:,3)),min(posErr_ncw(:,4))]) max([max(posErr_ncw(:,2)),max(posErr_ncw(:,3)),max(posErr_ncw(:,4))])])
+    xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
+    ylabel('Position error [m]','interpreter','latex','FontSize',fontsize);
+    set(gca,'FontSize',fontsize);
+    legend(perr_str,'interpreter','latex','FontSize',fontsize*2);
+    CartPositionErrFig.WindowState = 'fullscreen';
+    CartPositionErrFig.PaperPositionMode='auto';
+    CartPositionErrFig.PaperOrientation='landscape';
+    if saveFigs
+        sigNameString = strcat(trajTypeStr,'-cart-position-error');
+        if dynamicFlag
+            sigNameString = strcat('dynamic-',sigNameString);
+        end
+        filename_eps = strcat(fullPath,sigNameString,'.eps');
+        filename_pdf = strcat(fullPath,sigNameString,'.pdf');
+        exportgraphics(CartPositionErrFig,filename_eps,'Resolution',300);
+        exportgraphics(CartPositionErrFig,filename_pdf,'Resolution',300);
+    end
+
+    if ~dynamicFlag
+        % 2. Cartesian orientation error
+        CartOrientationFig = figure;
+        pdes_str = {'$\alpha_d$';'$\beta_d$';'$\gamma_d$'};
+        p_str = {'$\alpha$';'$\beta$';'$\gamma$'};
+        perr_str = {'$e_x$';'$e_y$';'$e_z$'};
+        tstart = posErr_ncw(1,1);
+        tend = min(posErr_ncw(end,1),posErr_cw(end,1));
+        ymax = [0.25 0.25 0.25];
+        for i = 1 : 3
+            subplot(3,1,i);
+            grid on;hold on;
+            box on; hold on;
+            plot(abg_ee(:,1),abg_ee(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;
+            plot(abg_des(:,1),abg_des(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;
+            axis([tstart tend -ymax(i) ymax(i)]);
+            legend({p_str{i};pdes_str{i}},'interpreter','latex','FontSize',fontsize*2);
+            xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
+            ylabel('Orientation [rad]','interpreter','latex','FontSize',fontsize);
+            set(gca,'FontSize',fontsize);
+        end
+        CartOrientationFig.WindowState = 'fullscreen';
+        CartOrientationFig.PaperPositionMode='auto';
+        CartOrientationFig.PaperOrientation='landscape';
+        if saveFigs
+            sigNameString = strcat(trajTypeStr,'-cart-orientation');
+            filename_eps = strcat(fullPath,sigNameString,'.eps');
+            filename_pdf = strcat(fullPath,sigNameString,'.pdf');
+            exportgraphics(CartOrientationFig,filename_eps,'Resolution',300);
+            exportgraphics(CartOrientationFig,filename_pdf,'Resolution',300);
+        end
     end
 end
-
 
 if dynamicFlag
     % 3. Commanded torques
@@ -289,27 +340,19 @@ if dynamicFlag
     yStrNames = {'Torque [Nm]';'Torque [Nm]';'Force [N]'};
     tstart = tauCmd(1,1);
     tend = tauCmd(end,1);
-%     ymax = [50 50 50];
     legStr = {};
     for i = 1 : 3
         subplot(3,1,i);
         grid on;hold on;
         box on;hold on;
         legStr = {};
-%         plot(tauCmd(:,1),tauCmd(:,i+1),'LineWidth',2,'Color',tau_color(i,:));hold on;legStr = [legStr;strTauNames(i);];
         plot(tauMod(:,1),tauMod(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;strcat('$\tau_{mod,',int2str(i),'}$');];
         plot(tauMeas(:,1),-tauMeas(:,i+1),'LineWidth',2,'Color',[1 0 0],'LineStyle','--');hold on;legStr = [legStr;strcat('$\tau_{sim,',int2str(i),'}$');];
-%         plot(tauCmd(:,1),tauCmd(:,i+1),'LineWidth',2,'Color',[0 1 0],'LineStyle','--');hold on;legStr = [legStr;strcat('$\tau_{cmd,',int2str(i),'}$');];
         xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
         ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
         set(gca,'FontSize',fontsize);
         legend(legStr,'interpreter','latex','FontSize',fontsize);
     end
-%     axis([tstart tend -ymax(i) ymax(i)]);
-%     xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-%     ylabel(yStrNames(i),'interpreter','latex','FontSize',fontsize);
-%     set(gca,'FontSize',fontsize);
-%     legend(legStr,'interpreter','latex','FontSize',fontsize*2);
     tauCmdFig.WindowState = 'fullscreen';
     tauCmdFig.PaperPositionMode='auto';
     tauCmdFig.PaperOrientation='landscape';
@@ -324,53 +367,4 @@ if dynamicFlag
         exportgraphics(tauCmdFig,filename_pdf,'Resolution',300);
     end
 end
-
-% 2. Cartesian position error for gravity comparison
-% figure;
-% posErrNames = {'$x \mbox{(no grav.)}$';'$y \mbox{(no grav.)}$';'$z \mbox{(no grav.)}$'};
-% posErrNames2 = {'$x \mbox{(with grav.)}$';'$y \mbox{(with grav.)}$';'$z \mbox{(with grav.)}$'};
-% tstart = posErr(1,1);
-% tend = min(posErr(end,1),posErr2(end,1));
-% ymax = [0.05 0.1 0.05];
-% logTitle = 'Cartesian position error';
-% for i = 1 : 3
-%     subplot(3,1,i);
-%     if i == 1, title(logTitle,'interpreter','latex');hold on; end
-%     legStr = {};
-%     grid on; hold on;
-%     box on; hold on;
-%     plot(posErr(:,1),abs(posErr(:,i+1)),'LineWidth',2,'Color',[1 0 0]);hold on;legStr = [legStr;posErrNames(i);];
-%     plot(posErr2(:,1),abs(posErr2(:,i+1)),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;posErrNames2(i);];
-%     axis([tstart tend -ymax(i) ymax(i)]);
-%     xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-%     ylabel('Position [m]','interpreter','latex','FontSize',fontsize);
-%     set(gca,'FontSize',fontsize);
-%     legend(legStr,'interpreter','latex','FontSize',fontsize);
-% end
-
-% Gravity vector
-% figure;
-% gNames = {'$g_1 \mbox{(no cw.)}$';'$g_2 \mbox{(no cw.)}$';'$g_3 \mbox{(no cw.)}$'};
-% gNames2 = {'$g_1 \mbox{(with cw.)}$';'$g_2 \mbox{(with cw.)}$';'$g_3 \mbox{(with cw.)}$'};
-% yGStr = {'Torque [Nm]','Torque [Nm]','Force[N]'};
-% tstart = g(1,1);
-% tend = min(g(end,1),g2(end,1));
-% logTitle = 'Cartesian position error';
-% for i = 1 : 3
-%     subplot(3,1,i);
-%     if i == 1, title(logTitle,'interpreter','latex');hold on; end
-%     legStr = {};
-%     grid on; hold on;
-%     box on; hold on;
-%     plot(g(:,1),g(:,i+1),'LineWidth',2,'Color',[1 0 0]);hold on;legStr = [legStr;gNames(i);];
-%     plot(g2(:,1),g2(:,i+1),'LineWidth',2,'Color',[0 0 1]);hold on;legStr = [legStr;gNames2(i);];
-%     gmin = min(min(g(:,i+1)),min(g2(:,i+1)));
-%     gmax = max(max(g(:,i+1)),max(g2(:,i+1)));
-%     axis([tstart tend gmin gmax]);
-%     xlabel('Time [s]','interpreter','latex','FontSize',fontsize);
-%     ylabel(yGStr{i},'interpreter','latex','FontSize',fontsize);
-%     set(gca,'FontSize',fontsize);
-%     legend(legStr,'interpreter','latex','FontSize',fontsize);
-% end
-% 
 

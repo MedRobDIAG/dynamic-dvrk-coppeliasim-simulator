@@ -1,0 +1,1 @@
+kinematic - excitation joint trajectories - dt=5ms - very accurate - qdot, qddot LP filtered - no counterweight

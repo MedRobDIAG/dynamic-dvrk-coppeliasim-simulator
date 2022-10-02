@@ -24,6 +24,7 @@
 #endif
 
 typedef Eigen::Matrix<double, PSM_ACTIVE_JOINTS, 1> psmActiveJointsVectord;
+typedef Eigen::Matrix<int, PSM_ACTIVE_JOINTS, 1> psmActiveJointsVectori;
 typedef Eigen::Matrix<float, PSM_ACTIVE_JOINTS, 1> psmActiveJointsVectorf;
 typedef Eigen::Matrix<double, PSM_FULL_JOINTS, 1> psmFullJointsVectord;
 typedef Eigen::Matrix<float, PSM_FULL_JOINTS, 1> psmFullJointsVectorf;

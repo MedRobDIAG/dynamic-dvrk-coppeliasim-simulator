@@ -1,0 +1,1 @@
+kinematic - rectilinear - dt=10ms - very accurate - qdot, qddot LP filtered - no counterweight 
