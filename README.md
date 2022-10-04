@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- [CoppeliaSim](https://www.coppeliarobotics.com/) simulation software$^{*}$
+- [CoppeliaSim](https://www.coppeliarobotics.com/) simulation software $^{*}$
 - [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page)$^{*}$
 - (optional) [Visual Studio](https://visualstudio.microsoft.com/)$^{*}$
 
